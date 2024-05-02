@@ -431,7 +431,7 @@ class ClassificationModel:
                 )
 
                 self.model = model_class.from_pretrained(
-                    None, config=config={**self.config, output_attentions:True, output_hidden_states:True}, state_dict=quantized_weights
+                    None, config={**self.config, output_attentions:True, output_hidden_states:True}, state_dict=quantized_weights
                 )
 
             if self.args.dynamic_quantize:
