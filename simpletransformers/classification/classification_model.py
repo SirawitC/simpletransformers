@@ -369,11 +369,13 @@ class ClassificationModel:
             self.config.output_hidden_states = True
             self.config.output_attentions = True
             self.num_labels = num_labels
+            print(self.config)
         else:
             self.config = config_class.from_pretrained(model_name, **self.args.config)
             self.config.output_hidden_states = True
             self.config.output_attentions = True
             self.num_labels = self.config.num_labels
+            print(self.config)
 
         if model_type in MODELS_WITHOUT_CLASS_WEIGHTS_SUPPORT and weight is not None:
             raise ValueError(
