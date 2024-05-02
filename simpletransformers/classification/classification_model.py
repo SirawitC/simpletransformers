@@ -365,7 +365,7 @@ class ClassificationModel:
 
         if num_labels:
             self.config = config_class.from_pretrained(
-                model_name, num_labels=num_labels, **self.args.config
+                model_name, num_labels=num_labels, **self.args.config)
             self.config.output_hidden_states = True
             self.config.output_attentions = True
             self.num_labels = num_labels
