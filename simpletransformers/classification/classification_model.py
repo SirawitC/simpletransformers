@@ -365,11 +365,11 @@ class ClassificationModel:
 
         if num_labels:
             self.config = config_class.from_pretrained(
-                model_name, num_labels=num_labels, **self.args.config
+                model_name, num_labels=num_labels,output_hidden_states=True,output_attentions=True, **self.args.config
             )
             self.num_labels = num_labels
         else:
-            self.config = config_class.from_pretrained(model_name, **self.args.config)
+            self.config = config_class.from_pretrained(model_name,output_hidden_states=True,output_attentions=True, **self.args.config)
             self.num_labels = self.config.num_labels
 
         if model_type in MODELS_WITHOUT_CLASS_WEIGHTS_SUPPORT and weight is not None:
