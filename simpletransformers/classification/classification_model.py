@@ -2342,12 +2342,11 @@ class ClassificationModel:
         self.save_model_args(output_dir)
 
     def _calculate_loss(self, model, inputs, loss_fct, num_labels, args):
-        outputs = model(**inputs)
+        outputs = model(**inputs, output_hidden_states=True, output_attentions=True)
         # model outputs are always tuple in pytorch-transformers (see doc)
         print(len(outputs))
         print(type(outputs))
         print(outputs)
-        print(outputs.last_hidden_state)
         loss = outputs[0]
         if loss_fct:
             logits = outputs[1]
