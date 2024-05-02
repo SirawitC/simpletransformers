@@ -2339,6 +2339,9 @@ class ClassificationModel:
     def _calculate_loss(self, model, inputs, loss_fct, num_labels, args):
         outputs = model(**inputs)
         # model outputs are always tuple in pytorch-transformers (see doc)
+        print(outputs.size())
+        print(type(outputs))
+        print(outputs)
         loss = outputs[0]
         if loss_fct:
             logits = outputs[1]
