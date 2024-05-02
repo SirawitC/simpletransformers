@@ -423,7 +423,7 @@ class ClassificationModel:
         else:
             if not self.args.quantized_model:
                 self.model = model_class.from_pretrained(
-                    model_name, config=self.config, **kwargs
+                    model_name, config={**self.config, output_attentions = True, output_hidden_states = True}, **kwargs
                 )
             else:
                 quantized_weights = torch.load(
@@ -431,7 +431,7 @@ class ClassificationModel:
                 )
 
                 self.model = model_class.from_pretrained(
-                    None, config=self.config, state_dict=quantized_weights
+                    None, config=config={**self.config, output_attentions = True, output_hidden_states = True}, state_dict=quantized_weights
                 )
 
             if self.args.dynamic_quantize:
