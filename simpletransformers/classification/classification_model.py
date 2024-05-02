@@ -2347,6 +2347,7 @@ class ClassificationModel:
         print(len(outputs))
         print(type(outputs))
         print(outputs)
+        print(outputs.last_hidden_state)
         loss = outputs[0]
         if loss_fct:
             logits = outputs[1]
