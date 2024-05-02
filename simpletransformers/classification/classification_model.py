@@ -2097,7 +2097,7 @@ class ClassificationModel:
             if self.args.fp16:
                 from torch.cuda import amp
 
-            if self.config.output_hidden_states:
+            if True:
                 model.eval()
                 preds = None
                 out_label_ids = None
@@ -2296,7 +2296,7 @@ class ClassificationModel:
         if self.config.output_hidden_states:
             return preds, model_outputs, all_embedding_outputs, all_layer_hidden_states
         else:
-            return preds, model_outputs
+            return preds, model_outputs, all_embedding_outputs, all_layer_hidden_states
 
     def convert_to_onnx(self, output_dir=None, set_onnx_arg=True):
         """Convert the model to ONNX format and save to output_dir
