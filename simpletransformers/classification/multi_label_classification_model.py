@@ -220,9 +220,13 @@ class MultiLabelClassificationModel(ClassificationModel):
             self.config = config_class.from_pretrained(
                 model_name, num_labels=num_labels, **self.args.config
             )
+            self.config.output_hidden_states = True
+            self.config.output_attentions = True
             self.num_labels = num_labels
         else:
             self.config = config_class.from_pretrained(model_name, **self.args.config)
+            self.config.output_hidden_states = True
+            self.config.output_attentions = True
             self.num_labels = self.config.num_labels
         self.pos_weight = pos_weight
         self.loss_fct = None
