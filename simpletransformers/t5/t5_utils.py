@@ -1,9 +1,11 @@
+import json
 import logging
 import os
 import pickle
 from multiprocessing import Pool
 from os import truncate
 from typing import Tuple
+import warnings
 
 import pandas as pd
 import torch
@@ -75,32 +77,62 @@ def preprocess_batch_for_hf_dataset(dataset, tokenizer, args, tokenize_targets=T
         return model_inputs
 
 
-def load_hf_dataset(data, tokenizer, args, tokenize_targets=True, reranking=False):
-    if args.model_type == "eet5" or reranking:
-        dataset = load_from_disk(data)
-    elif isinstance(data, str):
-        dataset = load_dataset(
-            "csv",
-            data_files=data,
-            delimiter="\t",
-            download_mode="force_redownload"
-            if args.reprocess_input_data
-            else "reuse_dataset_if_exists",
-            features=datasets.Features(
-                {
-                    "prefix": datasets.Value("string"),
-                    "input_text": datasets.Value("string"),
-                    "target_text": datasets.Value("string"),
-                }
+def load_hf_dataset(
+    data, tokenizer, args, tokenize_targets=True, reranking=False, evaluate=False
+):
+    if isinstance(data, str):
+        if (args.model_type == "eet5" or reranking) and os.path.isdir(data):
+            dataset = load_from_disk(data)
+        elif isinstance(data, str):
+            if reranking:
+                if args.add_prefix:
+                    features = datasets.Features(
+                        {
+                            "prefix": datasets.Value("string"),
+                            "input_text": datasets.Value("string"),
+                        }
+                    )
+                else:
+                    if evaluate:
+                        features = datasets.Features(
+                            {
+                                "query_id": datasets.Value("string"),
+                                "passage_id": datasets.Value("string"),
+                                "input_text": datasets.Value("string"),
+                            }
+                        )
+                    else:
+                        features = datasets.Features(
+                            {
+                                "input_text": datasets.Value("string"),
+                            }
+                        )
+            else:
+                if args.add_prefix:
+                    features = datasets.Features(
+                        {
+                            "prefix": datasets.Value("string"),
+                            "input_text": datasets.Value("string"),
+                            "target_text": datasets.Value("string"),
+                        }
+                    )
+                else:
+                    features = datasets.Features(
+                        {
+                            "input_text": datasets.Value("string"),
+                            "target_text": datasets.Value("string"),
+                        }
+                    )
+
+            dataset = load_dataset(
+                "csv",
+                data_files=data,
+                delimiter="\t",
+                download_mode="force_redownload"
+                if args.reprocess_input_data
+                else "reuse_dataset_if_exists",
+                features=features,
             )
-            if args.add_prefix
-            else datasets.Features(
-                {
-                    "input_text": datasets.Value("string"),
-                    "target_text": datasets.Value("string"),
-                }
-            ),
-        )
     else:
         dataset = HFDataset.from_pandas(data)
 
@@ -114,6 +146,10 @@ def load_hf_dataset(data, tokenizer, args, tokenize_targets=True, reranking=Fals
     )
 
     if args.model_type == "eet5" or reranking:
+        try:
+            dataset = dataset["train"]
+        except:
+            pass
         # If embeddings in dataset and encoder_ouputs not in dataset, rename embeddings to encoder_outputs
         if "embeddings" in dataset.features:
             dataset = dataset.rename_column("embeddings", "encoder_outputs")
@@ -256,3 +292,101 @@ class T5Dataset(Dataset):
 
     def __getitem__(self, index):
         return self.examples[index]
+
+
+def convert_beir_to_monot5_format(
+    data, run_dict=None, top_k=None, include_title=False, save_path=None
+):
+    """
+    Utility function to convert BEIR format to MonoT5 format
+
+    Args:
+        data: A directory containing a dataset in the BEIR format
+        run_dict: Path to a run file to build a reranking dataset. If not provided, all documents are considered.
+                  run_dict should be a json file with the following format:
+                    {
+                        "query_id1": ["doc_id1": score1, "doc_id2": score2, ...],
+                        "query_id2": ["doc_id1": score1, "doc_id2": score2, ...],
+                        ...
+                    }
+        top_k: Number of documents to consider for reranking. Only used if run_dict is provided.
+        include_title: Whether to include the title of the document in the MonoT5 format.
+        save_path: Path to save the converted dataset. If not provided, the dataset is returned as a DataFrame.
+    """
+
+    if run_dict:
+        with open(run_dict, "r") as f:
+            run_dict = json.load(f)
+        if top_k:
+            for query_id in run_dict:
+                run_dict[query_id] = dict(
+                    sorted(
+                        run_dict[query_id].items(), key=lambda x: x[1], reverse=True
+                    )[:top_k]
+                )
+
+        # Make sure both query_id and doc_id are strings
+        updated_dict = {}
+        for query_id in run_dict:
+            updated_dict[str(query_id)] = {
+                str(k): v for k, v in run_dict[query_id].items()
+            }
+
+        run_dict = updated_dict
+    else:
+        if top_k:
+            warnings.warn(
+                "top_k is only used when run_dict is provided. Ignoring top_k."
+            )
+
+    queries_df = pd.read_json(os.path.join(data, "queries.jsonl"), lines=True)
+    corpus_df = pd.read_json(os.path.join(data, "corpus.jsonl"), lines=True)
+
+    queries_df["_id"] = queries_df["_id"].astype(str)
+    corpus_df["_id"] = corpus_df["_id"].astype(str)
+
+    if include_title:
+        corpus_df["text"] = corpus_df["title"] + " " + corpus_df["text"]
+
+    queries_df = queries_df.set_index("_id")
+    corpus_df = corpus_df.set_index("_id")
+
+    if run_dict:
+        reranking_data = []
+        for query_id in tqdm(run_dict, total=len(run_dict)):
+            for passage_id in run_dict[query_id]:
+                reranking_data.append(
+                    {
+                        "query_id": query_id,
+                        "query": queries_df.loc[query_id]["text"],
+                        "passage_id": passage_id,
+                        "passage": corpus_df.loc[passage_id]["text"],
+                    }
+                )
+    else:
+        reranking_data = []
+        for query_id, query in tqdm(queries_df.iterrows(), total=len(queries_df)):
+            for passage_id, passage in corpus_df.iterrows():
+                reranking_data.append(
+                    {
+                        "query_id": query_id,
+                        "query": query["text"],
+                        "passage_id": passage_id,
+                        "passage": passage["text"],
+                    }
+                )
+
+    # MonoT5 format DF should have the columns: query_id, passage_id, input_text
+    # input_text should be in the format: "Query: <query> Document: <document> Relevant:"
+    reranking_df = pd.DataFrame(reranking_data)
+    reranking_df["input_text"] = reranking_df.apply(
+        lambda x: f"Query: {x['query']} Document: {x['passage']} Relevant:", axis=1
+    )
+
+    reranking_df = reranking_df[["query_id", "passage_id", "input_text"]]
+
+    if save_path:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        reranking_df.to_csv(save_path, sep="\t", index=False)
+
+    return reranking_df

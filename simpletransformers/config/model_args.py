@@ -224,6 +224,7 @@ class T5Args(ModelArgs):
 
     model_class: str = "T5Model"
     add_prefix: bool = True
+    as_reranker: bool = False
     dataset_class: Dataset = None
     do_sample: bool = False
     early_stopping: bool = True
@@ -430,18 +431,23 @@ class RetrievalArgs(Seq2SeqArgs):
     hard_negatives_in_eval: bool = False
     include_bce_loss: bool = False
     include_hard_negatives_for_triplets_only: bool = False
+    include_margin_mse_loss: bool = False
     include_nll_loss: bool = True
     include_title: bool = True
     include_triplet_loss: bool = False
-    kl_div_loss: bool = False
-    kl_div_loss_multiplier: float = 1.0
+    reranking_kl_div_loss: bool = False
+    include_kl_div_loss: bool = False
+    kl_div_lambda: float = 1.0
     kmeans_k: int = -1
     larger_representations: bool = False
+    margin_mse_lambda: float = 1
     mse_loss: bool = False
     moving_average_loss_count: int = 10
     multi_vector_query: bool = False
     query_vector_count: int = 50
     nll_lambda: float = 1.0
+    nll_lambda_start_decay: int = None
+    nll_lambda_min: float = None
     n_hard_negatives: int = 1
     output_dropout: float = 0.1
     pytrec_eval_metrics: list = field(
@@ -456,6 +462,7 @@ class RetrievalArgs(Seq2SeqArgs):
     retrieve_n_docs: int = 10
     save_clustering_idx: bool = False
     save_passage_dataset: bool = True
+    skip_hard_negatives_for_nll: bool = False
     tas_clustering: bool = False
     teacher_type: str = "colbert"
     tie_encoders: bool = False
