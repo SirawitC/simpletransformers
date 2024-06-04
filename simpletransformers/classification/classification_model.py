@@ -369,13 +369,11 @@ class ClassificationModel:
             self.config.output_hidden_states = True
             self.config.output_attentions = True
             self.num_labels = num_labels
-            print(self.config)
         else:
             self.config = config_class.from_pretrained(model_name, **self.args.config)
             self.config.output_hidden_states = True
             self.config.output_attentions = True
             self.num_labels = self.config.num_labels
-            print(self.config)
 
         if model_type in MODELS_WITHOUT_CLASS_WEIGHTS_SUPPORT and weight is not None:
             raise ValueError(
@@ -2344,9 +2342,6 @@ class ClassificationModel:
     def _calculate_loss(self, model, inputs, loss_fct, num_labels, args):
         outputs = model(**inputs)
         # model outputs are always tuple in pytorch-transformers (see doc)
-        print(len(outputs))
-        print(type(outputs))
-        print(outputs)
         loss = outputs[0]
         if loss_fct:
             logits = outputs[1]
